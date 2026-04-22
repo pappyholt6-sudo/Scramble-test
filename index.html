@@ -248,7 +248,6 @@
     }
 
     function topFaceColorsFromState(state) {
-      // ULB UBR / UFL URF
       const positions = [2, 3, 1, 0];
       return positions.map((pos) => {
         const cubie = state.cp[pos];
@@ -286,9 +285,7 @@
     }
 
     function generateScramble() {
-      // random walk in the RUF subgroup
-      // longer than 11 a bit, then trim feel by cancellation avoidance only
-      const length = 14 + randomInt(4); // 14-17
+      const length = 9 + randomInt(3); // 9-11
       const scramble = generateRUFSequence(length);
 
       scrambleEl.textContent = scramble;

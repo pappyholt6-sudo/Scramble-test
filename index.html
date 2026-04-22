@@ -1,427 +1,437 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>cubing.js WCA Scramble Tester</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>2x2 Random-State UFR Scramble Generator</title>
   <style>
     :root {
       --bg: #0f1115;
-      --panel: #171a21;
-      --panel2: #1f2430;
-      --text: #e8ecf1;
-      --muted: #a9b3c1;
-      --border: #2e3545;
-      --accent: #6ea8fe;
-      --ok: #35c759;
-      --err: #ff5f57;
+      --card: #171a21;
+      --text: #f5f7fb;
+      --muted: #9aa4b2;
+      --accent: #4f8cff;
+      --border: #2a3140;
     }
+
     * { box-sizing: border-box; }
+
     body {
       margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
       background: var(--bg);
       color: var(--text);
-      font: 14px/1.4 system-ui, sans-serif;
+      font-family: system-ui, Arial, sans-serif;
+      padding: 24px;
     }
-    .wrap {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 20px;
+
+    .card {
+      width: min(820px, 100%);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.25);
     }
+
     h1 {
       margin: 0 0 8px;
-      font-size: 28px;
+      font-size: clamp(1.5rem, 3vw, 2rem);
     }
-    .sub {
+
+    p {
+      margin: 0 0 18px;
       color: var(--muted);
-      margin-bottom: 16px;
     }
-    .box {
-      background: var(--panel);
+
+    .scramble, .status {
+      font-size: clamp(1.35rem, 3.8vw, 2.2rem);
+      line-height: 1.4;
+      padding: 18px;
+      background: #0d1016;
       border: 1px solid var(--border);
       border-radius: 14px;
-      padding: 16px;
-      margin-bottom: 16px;
-    }
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 12px;
-    }
-    label {
-      display: block;
-      margin-bottom: 6px;
-      color: var(--muted);
-      font-size: 12px;
-    }
-    input, textarea, button {
-      width: 100%;
-      border-radius: 10px;
-      border: 1px solid var(--border);
-      background: var(--panel2);
-      color: var(--text);
-      padding: 10px 12px;
-      font: inherit;
-    }
-    textarea {
-      min-height: 160px;
-      resize: vertical;
-    }
-    .buttons {
+      min-height: 84px;
       display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin-top: 14px;
-    }
-    button {
-      width: auto;
-      cursor: pointer;
-      border: none;
-      background: var(--accent);
-      color: #08111f;
-      font-weight: 700;
-    }
-    button.secondary {
-      background: #2c3342;
-      color: var(--text);
-      border: 1px solid var(--border);
-    }
-    button:disabled {
-      opacity: 0.65;
-      cursor: wait;
-    }
-    .status {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
       align-items: center;
-    }
-    .pill {
-      display: inline-block;
-      padding: 4px 8px;
-      border-radius: 999px;
-      background: #263047;
-      font-size: 12px;
-    }
-    .pill.ok { background: rgba(53,199,89,.15); color: #7ae59b; }
-    .pill.err { background: rgba(255,95,87,.15); color: #ff8d86; }
-    .results {
-      display: grid;
-      gap: 14px;
-    }
-    .event-card {
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      overflow: hidden;
-      background: var(--panel2);
-    }
-    .event-head {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 12px 14px;
-      border-bottom: 1px solid var(--border);
-      background: rgba(255,255,255,.02);
-    }
-    .event-name {
-      font-weight: 700;
-    }
-    .meta {
-      font-size: 12px;
-      color: var(--muted);
-    }
-    .scrambles {
-      padding: 10px 14px 14px;
-      display: grid;
-      gap: 8px;
-    }
-    .scramble {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      background: #121621;
-      border: 1px solid #252c3b;
-      border-radius: 8px;
-      padding: 8px 10px;
-      white-space: pre-wrap;
       word-break: break-word;
     }
-    .note {
+
+    .status {
+      font-size: 1rem;
+      min-height: 58px;
       color: var(--muted);
-      font-size: 12px;
-      margin-top: 10px;
+      margin-top: 14px;
+    }
+
+    .row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 18px;
+    }
+
+    button {
+      border: 0;
+      background: var(--accent);
+      color: white;
+      padding: 12px 18px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: 600;
+      font: inherit;
+    }
+
+    button:hover:enabled {
+      filter: brightness(1.08);
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .meta {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    code {
+      background: #0d1016;
+      padding: 2px 6px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
     }
   </style>
-
-  <!-- package-style cubing.js imports in browser -->
-  <script type="importmap">
-  {
-    "imports": {
-      "cubing/": "https://cdn.cubing.net/v0/js/cubing/"
-    }
-  }
-  </script>
 </head>
 <body>
-  <div class="wrap">
-    <h1>cubing.js WCA Scramble Tester</h1>
-    <div class="sub">Generate and compare scrambles for all official WCA events.</div>
+  <main class="card">
+    <h1>2x2 Random-State Scramble Generator</h1>
+    <p>U/F/R-only output. Random-state. Rejects states shorter than 4 optimal moves.</p>
 
-    <div class="box">
-      <div class="grid">
-        <div>
-          <label for="count">Scrambles per event</label>
-          <input id="count" type="number" min="1" max="50" value="5" />
-        </div>
-        <div>
-          <label for="parallel">Parallel events at once</label>
-          <input id="parallel" type="number" min="1" max="8" value="3" />
-        </div>
-      </div>
+    <div class="scramble" id="scramble">Initializing…</div>
 
-      <div style="margin-top:14px;">
-        <label for="eventCodes">WCA event codes</label>
-        <textarea id="eventCodes">222
-333
-444
-555
-666
-777
-333bf
-333fm
-333oh
-clock
-minx
-pyram
-skewb
-sq1
-444bf
-555bf
-333mbf</textarea>
-      </div>
-
-      <div class="buttons">
-        <button id="generateBtn">Generate scrambles</button>
-        <button id="copyBtn" class="secondary" type="button">Copy all</button>
-        <button id="clearBtn" class="secondary" type="button">Clear</button>
-      </div>
-
-      <div class="note">
-        Serve over <code>http://</code> or <code>https://</code>. Not <code>file://</code>.
-      </div>
+    <div class="row">
+      <button id="generateBtn" disabled>Generate</button>
+      <button id="copyBtn" disabled>Copy</button>
     </div>
 
-    <div class="box">
-      <div class="status" id="statusLine">
-        <span class="pill">Idle</span>
-      </div>
-    </div>
+    <div class="status" id="status">Building pruning tables…</div>
+    <div class="meta" id="meta"></div>
+  </main>
 
-    <div class="results" id="results"></div>
-  </div>
-
-  <script type="module">
-    import { randomScrambleForEvent } from "cubing/scramble";
-    import { setSearchDebug } from "cubing/search";
-
-    setSearchDebug({
-      logPerf: false,
-      scramblePrefetchLevel: "none"
-    });
+  <script>
+    const FACE_NAMES = ["U", "R", "F"];
+    const SUFFIXES = ["", "2", "'"];
+    const INV_SUFFIX_INDEX = [2, 1, 0];
+    const FACT = [1, 1, 2, 6, 24, 120, 720, 5040, 40320];
 
     const generateBtn = document.getElementById("generateBtn");
     const copyBtn = document.getElementById("copyBtn");
-    const clearBtn = document.getElementById("clearBtn");
-    const countEl = document.getElementById("count");
-    const parallelEl = document.getElementById("parallel");
-    const eventCodesEl = document.getElementById("eventCodes");
-    const resultsEl = document.getElementById("results");
-    const statusLineEl = document.getElementById("statusLine");
+    const scrambleEl = document.getElementById("scramble");
+    const statusEl = document.getElementById("status");
+    const metaEl = document.getElementById("meta");
 
-    let lastOutputText = "";
+    // Corner order:
+    // 0 URF, 1 UFL, 2 ULB, 3 UBR, 4 DFR, 5 DLF, 6 DBL, 7 DRB
 
-    function setStatus(items) {
-      statusLineEl.innerHTML = "";
-      for (const item of items) {
-        const span = document.createElement("span");
-        span.className = `pill ${item.type || ""}`.trim();
-        span.textContent = item.text;
-        statusLineEl.appendChild(span);
+    const MOVE_CP = [
+      // U
+      [3, 0, 1, 2, 4, 5, 6, 7],
+      // R
+      [4, 1, 2, 0, 7, 5, 6, 3],
+      // F
+      [1, 5, 2, 3, 0, 4, 6, 7]
+    ];
+
+    const MOVE_CO = [
+      // U
+      [0, 0, 0, 0, 0, 0, 0, 0],
+      // R
+      [2, 0, 0, 1, 1, 0, 0, 2],
+      // F
+      [1, 2, 0, 0, 2, 1, 0, 0]
+    ];
+
+    const NUM_ORI = 2187;   // 3^7
+    const NUM_PERM = 40320; // 8!
+
+    const oriMove = Array.from({ length: 9 }, () => new Uint16Array(NUM_ORI));
+    const permMove = Array.from({ length: 9 }, () => new Uint16Array(NUM_PERM));
+    const oriDist = new Uint8Array(NUM_ORI);
+    const permDist = new Uint8Array(NUM_PERM);
+
+    function applyFaceMove(cp, co, face) {
+      const newCp = new Array(8);
+      const newCo = new Array(8);
+      const mcp = MOVE_CP[face];
+      const mco = MOVE_CO[face];
+
+      for (let i = 0; i < 8; i++) {
+        const oldPos = mcp[i];
+        newCp[i] = cp[oldPos];
+        newCo[i] = (co[oldPos] + mco[i]) % 3;
       }
+
+      return { cp: newCp, co: newCo };
     }
 
-    function parseEventCodes() {
-      return [...new Set(
-        eventCodesEl.value
-          .split("\n")
-          .map(s => s.trim())
-          .filter(Boolean)
-      )];
+    function oriToIndex(co) {
+      let idx = 0;
+      for (let i = 0; i < 7; i++) idx = idx * 3 + co[i];
+      return idx;
     }
 
-    async function generateOne(eventCode) {
-      const alg = await randomScrambleForEvent(eventCode);
-      return alg.toString();
-    }
-
-    async function generateMany(eventCode, count) {
-      const out = [];
-      for (let i = 0; i < count; i++) {
-        out.push(await generateOne(eventCode));
+    function indexToOri(idx) {
+      const co = new Array(8).fill(0);
+      let sum = 0;
+      for (let i = 6; i >= 0; i--) {
+        co[i] = idx % 3;
+        sum += co[i];
+        idx = (idx / 3) | 0;
       }
-      return out;
+      co[7] = (3 - (sum % 3)) % 3;
+      return co;
     }
 
-    async function runWithConcurrency(tasks, limit) {
-      const results = new Array(tasks.length);
-      let nextIndex = 0;
-
-      async function worker() {
-        while (true) {
-          const i = nextIndex++;
-          if (i >= tasks.length) return;
-          results[i] = await tasks[i]();
+    function permToIndex(cp) {
+      let idx = 0;
+      for (let i = 0; i < 8; i++) {
+        let less = 0;
+        for (let j = i + 1; j < 8; j++) {
+          if (cp[j] < cp[i]) less++;
         }
+        idx = idx * (8 - i) + less;
       }
-
-      const workers = Array.from(
-        { length: Math.min(limit, tasks.length) },
-        () => worker()
-      );
-
-      await Promise.all(workers);
-      return results;
+      return idx;
     }
 
-    function renderResults(data) {
-      resultsEl.innerHTML = "";
-      const lines = [];
-
-      for (const item of data) {
-        const card = document.createElement("div");
-        card.className = "event-card";
-
-        const head = document.createElement("div");
-        head.className = "event-head";
-
-        const left = document.createElement("div");
-        left.innerHTML = `
-          <div class="event-name">${escapeHtml(item.eventCode)}</div>
-          <div class="meta">${item.ok ? `${item.scrambles.length} scramble(s)` : "error"}</div>
-        `;
-
-        const right = document.createElement("div");
-        right.innerHTML = item.ok
-          ? `<span class="pill ok">OK</span>`
-          : `<span class="pill err">FAILED</span>`;
-
-        head.appendChild(left);
-        head.appendChild(right);
-
-        const body = document.createElement("div");
-        body.className = "scrambles";
-
-        if (item.ok) {
-          lines.push(`[${item.eventCode}]`);
-          item.scrambles.forEach((scramble, idx) => {
-            const div = document.createElement("div");
-            div.className = "scramble";
-            div.textContent = `${idx + 1}. ${scramble}`;
-            body.appendChild(div);
-            lines.push(`${idx + 1}. ${scramble}`);
-          });
-          lines.push("");
-        } else {
-          const div = document.createElement("div");
-          div.className = "scramble";
-          div.textContent = item.error;
-          body.appendChild(div);
-          lines.push(`[${item.eventCode}] ERROR: ${item.error}`);
-          lines.push("");
-        }
-
-        card.appendChild(head);
-        card.appendChild(body);
-        resultsEl.appendChild(card);
+    function indexToPerm(idx) {
+      const items = [0, 1, 2, 3, 4, 5, 6, 7];
+      const cp = new Array(8);
+      for (let i = 0; i < 8; i++) {
+        const f = FACT[7 - i];
+        const pos = (idx / f) | 0;
+        idx %= f;
+        cp[i] = items.splice(pos, 1)[0];
       }
-
-      lastOutputText = lines.join("\n");
+      return cp;
     }
 
-    function escapeHtml(str) {
-      return str
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#39;");
-    }
-
-    async function generateAll() {
-      const eventCodes = parseEventCodes();
-      const count = Math.max(1, Math.min(50, Number(countEl.value) || 5));
-      const parallel = Math.max(1, Math.min(8, Number(parallelEl.value) || 3));
-
-      if (!eventCodes.length) {
-        setStatus([{ text: "No event codes", type: "err" }]);
-        return;
-      }
-
-      generateBtn.disabled = true;
-      setStatus([
-        { text: "Generating..." },
-        { text: `${eventCodes.length} event(s)` },
-        { text: `${count} each` }
-      ]);
-
-      try {
-        const tasks = eventCodes.map((eventCode) => async () => {
-          try {
-            const scrambles = await generateMany(eventCode, count);
-            return { eventCode, ok: true, scrambles };
-          } catch (err) {
-            return {
-              eventCode,
-              ok: false,
-              error: err?.message || String(err)
-            };
+    function buildMoveTables() {
+      // Orientation move tables
+      const solvedCp = [0,1,2,3,4,5,6,7];
+      for (let ori = 0; ori < NUM_ORI; ori++) {
+        const baseCo = indexToOri(ori);
+        for (let face = 0; face < 3; face++) {
+          let cp = solvedCp.slice();
+          let co = baseCo.slice();
+          for (let power = 0; power < 3; power++) {
+            ({ cp, co } = applyFaceMove(cp, co, face));
+            oriMove[face * 3 + power][ori] = oriToIndex(co);
           }
-        });
+        }
+      }
 
-        const data = await runWithConcurrency(tasks, parallel);
-        renderResults(data);
-
-        const okCount = data.filter(d => d.ok).length;
-        const failCount = data.length - okCount;
-
-        setStatus([
-          { text: "Done", type: okCount ? "ok" : "" },
-          { text: `${okCount} ok`, type: okCount ? "ok" : "" },
-          { text: `${failCount} failed`, type: failCount ? "err" : "" }
-        ]);
-      } finally {
-        generateBtn.disabled = false;
+      // Permutation move tables
+      const solvedCo = [0,0,0,0,0,0,0,0];
+      for (let perm = 0; perm < NUM_PERM; perm++) {
+        const baseCp = indexToPerm(perm);
+        for (let face = 0; face < 3; face++) {
+          let cp = baseCp.slice();
+          let co = solvedCo.slice();
+          for (let power = 0; power < 3; power++) {
+            ({ cp, co } = applyFaceMove(cp, co, face));
+            permMove[face * 3 + power][perm] = permToIndex(cp);
+          }
+        }
       }
     }
 
-    generateBtn.addEventListener("click", generateAll);
+    function buildDistTable(moveTable, distTable, size) {
+      distTable.fill(255);
+      const queue = new Uint32Array(size);
+      let head = 0;
+      let tail = 0;
+      queue[tail++] = 0;
+      distTable[0] = 0;
+
+      while (head < tail) {
+        const state = queue[head++];
+        const nextDepth = distTable[state] + 1;
+        for (let m = 0; m < 9; m++) {
+          const next = moveTable[m][state];
+          if (distTable[next] === 255) {
+            distTable[next] = nextDepth;
+            queue[tail++] = next;
+          }
+        }
+      }
+    }
+
+    function randomInt(max) {
+      if (window.crypto && crypto.getRandomValues) {
+        const arr = new Uint32Array(1);
+        let x;
+        const limit = Math.floor(0x100000000 / max) * max;
+        do {
+          crypto.getRandomValues(arr);
+          x = arr[0];
+        } while (x >= limit);
+        return x % max;
+      }
+      return Math.floor(Math.random() * max);
+    }
+
+    function shuffle(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = randomInt(i + 1);
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    function randomState() {
+      const cp = shuffle([0,1,2,3,4,5,6,7]);
+      const co = new Array(8).fill(0);
+      let sum = 0;
+      for (let i = 0; i < 7; i++) {
+        co[i] = randomInt(3);
+        sum += co[i];
+      }
+      co[7] = (3 - (sum % 3)) % 3;
+
+      return {
+        perm: permToIndex(cp),
+        ori: oriToIndex(co)
+      };
+    }
+
+    function heuristic(ori, perm) {
+      return Math.max(oriDist[ori], permDist[perm]);
+    }
+
+    function dfs(ori, perm, depth, lastFace, path) {
+      const h = heuristic(ori, perm);
+      if (h > depth) return false;
+      if (depth === 0) return ori === 0 && perm === 0;
+
+      for (let face = 0; face < 3; face++) {
+        if (face === lastFace) continue;
+
+        for (let power = 0; power < 3; power++) {
+          const move = face * 3 + power;
+          const nextOri = oriMove[move][ori];
+          const nextPerm = permMove[move][perm];
+          path.push(move);
+
+          if (dfs(nextOri, nextPerm, depth - 1, face, path)) return true;
+
+          path.pop();
+        }
+      }
+      return false;
+    }
+
+    function solveOptimal(ori, perm, minDepth = 0, maxDepth = 14) {
+      const start = heuristic(ori, perm);
+      const path = [];
+
+      for (let depth = Math.max(start, minDepth); depth <= maxDepth; depth++) {
+        path.length = 0;
+        if (dfs(ori, perm, depth, -1, path)) {
+          return path.slice();
+        }
+      }
+      throw new Error("No solution found within depth limit.");
+    }
+
+    function inverseMove(move) {
+      const face = (move / 3) | 0;
+      const power = move % 3;
+      return face * 3 + INV_SUFFIX_INDEX[power];
+    }
+
+    function moveToString(move) {
+      const face = (move / 3) | 0;
+      const power = move % 3;
+      return FACE_NAMES[face] + SUFFIXES[power];
+    }
+
+    function solutionToScramble(solutionMoves) {
+      const out = [];
+      for (let i = solutionMoves.length - 1; i >= 0; i--) {
+        out.push(moveToString(inverseMove(solutionMoves[i])));
+      }
+      return out.join(" ");
+    }
+
+    async function init() {
+      const t0 = performance.now();
+
+      statusEl.textContent = "Building move tables…";
+      await new Promise(r => setTimeout(r, 0));
+      buildMoveTables();
+
+      statusEl.textContent = "Building orientation pruning table…";
+      await new Promise(r => setTimeout(r, 0));
+      buildDistTable(oriMove, oriDist, NUM_ORI);
+
+      statusEl.textContent = "Building permutation pruning table…";
+      await new Promise(r => setTimeout(r, 0));
+      buildDistTable(permMove, permDist, NUM_PERM);
+
+      const t1 = performance.now();
+      statusEl.textContent = "Ready.";
+      metaEl.textContent = `Setup finished in ${(t1 - t0).toFixed(0)} ms`;
+      generateBtn.disabled = false;
+      copyBtn.disabled = false;
+
+      generateScramble();
+    }
+
+    function generateScramble() {
+      scrambleEl.textContent = "Generating…";
+      statusEl.textContent = "Searching random-state U/F/R scramble…";
+
+      setTimeout(() => {
+        try {
+          let state, solution, scramble;
+
+          do {
+            state = randomState();
+            solution = solveOptimal(state.ori, state.perm, 4, 14);
+            scramble = solutionToScramble(solution);
+          } while (solution.length < 4);
+
+          scrambleEl.textContent = scramble;
+          statusEl.textContent = `Optimal length: ${solution.length}   |   Output metric: U/F/R only`;
+        } catch (err) {
+          scrambleEl.textContent = "Error";
+          statusEl.textContent = err.message;
+        }
+      }, 0);
+    }
+
+    generateBtn.addEventListener("click", generateScramble);
 
     copyBtn.addEventListener("click", async () => {
-      if (!lastOutputText) return;
       try {
-        await navigator.clipboard.writeText(lastOutputText);
-        setStatus([
-          { text: "Copied", type: "ok" },
-          { text: "Scrambles copied" }
-        ]);
+        await navigator.clipboard.writeText(scrambleEl.textContent);
+        const old = copyBtn.textContent;
+        copyBtn.textContent = "Copied";
+        setTimeout(() => { copyBtn.textContent = old; }, 800);
       } catch {
-        setStatus([{ text: "Copy failed", type: "err" }]);
+        const old = copyBtn.textContent;
+        copyBtn.textContent = "Failed";
+        setTimeout(() => { copyBtn.textContent = old; }, 800);
       }
     });
 
-    clearBtn.addEventListener("click", () => {
-      resultsEl.innerHTML = "";
-      lastOutputText = "";
-      setStatus([{ text: "Cleared" }]);
-    });
+    init();
   </script>
 </body>
 </html>

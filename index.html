@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>2x2 Random-State Scramble Generator</title>
+  <title>2x2 Random-State UFR Scramble Generator</title>
   <style>
     :root {
       --bg: #0f1115;
@@ -13,7 +13,9 @@
       --accent: #4f8cff;
       --border: #2a3140;
     }
+
     * { box-sizing: border-box; }
+
     body {
       margin: 0;
       min-height: 100vh;
@@ -24,30 +26,35 @@
       font-family: system-ui, Arial, sans-serif;
       padding: 24px;
     }
+
     .card {
-      width: min(900px, 100%);
+      width: min(860px, 100%);
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: 18px;
       padding: 24px;
       box-shadow: 0 10px 30px rgba(0,0,0,0.25);
     }
+
     h1 {
       margin: 0 0 8px;
       font-size: clamp(1.5rem, 3vw, 2rem);
     }
+
     p {
       margin: 0 0 18px;
       color: var(--muted);
     }
+
     .scramble-row {
       display: flex;
       align-items: center;
       gap: 12px;
       flex-wrap: wrap;
     }
+
     .scramble {
-      font-size: clamp(1.25rem, 3.5vw, 2rem);
+      font-size: clamp(1.35rem, 3.8vw, 2.2rem);
       line-height: 1.4;
       padding: 18px;
       background: #0d1016;
@@ -57,8 +64,9 @@
       display: flex;
       align-items: center;
       word-break: break-word;
-      flex: 1 1 520px;
+      flex: 1 1 420px;
     }
+
     .top-face-preview {
       display: grid;
       grid-template-columns: repeat(2, 18px);
@@ -71,18 +79,14 @@
       width: max-content;
       flex: 0 0 auto;
     }
+
     .top-face-sticker {
       width: 18px;
       height: 18px;
       border-radius: 3px;
       border: 1px solid rgba(0,0,0,0.18);
     }
-    .row {
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-      margin-top: 18px;
-    }
+
     .status {
       font-size: 1rem;
       min-height: 58px;
@@ -95,6 +99,14 @@
       display: flex;
       align-items: center;
     }
+
+    .row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 18px;
+    }
+
     button {
       border: 0;
       background: var(--accent);
@@ -105,7 +117,16 @@
       font-weight: 600;
       font: inherit;
     }
-    button:hover:enabled { filter: brightness(1.08); }
+
+    button:hover:enabled {
+      filter: brightness(1.08);
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
     .meta {
       margin-top: 12px;
       color: var(--muted);
@@ -115,29 +136,63 @@
 </head>
 <body>
   <main class="card">
-    <h1>2x2 Random-State Scramble Generator</h1>
-    <p>True random-state. May include U, F, R, D, B, L moves.</p>
+    <h1>2x2 Random-State U/F/R Scramble Generator</h1>
+    <p>True random-state in the fixed-corner U/F/R model. Output only uses U, F, R.</p>
 
     <div class="scramble-row">
-      <div class="scramble" id="scramble">Loading…</div>
+      <div class="scramble" id="scramble">Initializing…</div>
       <div id="topFacePreview" class="top-face-preview" title="Top face preview"></div>
     </div>
 
     <div class="row">
-      <button id="generateBtn">Generate</button>
-      <button id="copyBtn">Copy</button>
+      <button id="generateBtn" disabled>Generate</button>
+      <button id="copyBtn" disabled>Copy</button>
     </div>
 
-    <div class="status" id="status">Loading scramble engine…</div>
-    <div class="meta">Use on GitHub Pages or another http/https server.</div>
+    <div class="status" id="status">Building tables…</div>
+    <div class="meta" id="meta"></div>
   </main>
 
-  <script type="module">
-    import { randomScrambleForEvent } from "https://cdn.cubing.net/v0/js/cubing/scramble";
-
+  <script>
     const scrambleEl = document.getElementById("scramble");
     const statusEl = document.getElementById("status");
+    const metaEl = document.getElementById("meta");
+    const generateBtn = document.getElementById("generateBtn");
     const copyBtn = document.getElementById("copyBtn");
+
+    const FACE_NAMES = ["U", "R", "F"];
+    const SUFFIXES = ["", "2", "'"];
+    const INV_SUFFIX_INDEX = [2, 1, 0];
+    const FACT = [1, 1, 2, 6, 24, 120, 720, 5040];
+
+    // Corner indices:
+    // 0 URF, 1 UFL, 2 ULB, 3 UBR, 4 DFR, 5 DLF, 6 DBL, 7 DRB
+    // DBL (6) is fixed in the U/F/R model.
+
+    const MOVE_CP = [
+      [3, 0, 1, 2, 4, 5, 6, 7], // U
+      [4, 1, 2, 0, 7, 5, 6, 3], // R
+      [1, 5, 2, 3, 0, 4, 6, 7]  // F
+    ];
+
+    const MOVE_CO = [
+      [0, 0, 0, 0, 0, 0, 0, 0], // U
+      [2, 0, 0, 1, 1, 0, 0, 2], // R
+      [1, 2, 0, 0, 2, 1, 0, 0]  // F
+    ];
+
+    const CORNER_COLORS = [
+      ["U", "R", "F"],
+      ["U", "F", "L"],
+      ["U", "L", "B"],
+      ["U", "B", "R"],
+      ["D", "F", "R"],
+      ["D", "L", "F"],
+      ["D", "B", "L"],
+      ["D", "R", "B"]
+    ];
+
+    const TOP_COLOR_INDEX = [0, 2, 1];
 
     const FACE_COLORS = {
       U: "#ffffff",
@@ -148,121 +203,346 @@
       L: "#ff5800"
     };
 
-    function createSolvedCube() {
+    const MOVABLE = [0, 1, 2, 3, 4, 5, 7]; // all except DBL=6
+
+    const NUM_ORI = 729;   // 3^6
+    const NUM_PERM = 5040; // 7!
+
+    const oriMove = Array.from({ length: 9 }, () => new Uint16Array(NUM_ORI));
+    const permMove = Array.from({ length: 9 }, () => new Uint16Array(NUM_PERM));
+    const oriDist = new Uint8Array(NUM_ORI);
+    const permDist = new Uint8Array(NUM_PERM);
+
+    function applyFaceMove(cp, co, face) {
+      const newCp = new Array(8);
+      const newCo = new Array(8);
+      const mcp = MOVE_CP[face];
+      const mco = MOVE_CO[face];
+
+      for (let i = 0; i < 8; i++) {
+        const oldPos = mcp[i];
+        newCp[i] = cp[oldPos];
+        newCo[i] = (co[oldPos] + mco[i]) % 3;
+      }
+
+      return { cp: newCp, co: newCo };
+    }
+
+    function perm7ToIndex(cp) {
+      const arr = MOVABLE.map(pos => {
+        const cubie = cp[pos];
+        return cubie < 6 ? cubie : 6; // map cubie 7 -> 6
+      });
+
+      let idx = 0;
+      for (let i = 0; i < 7; i++) {
+        let less = 0;
+        for (let j = i + 1; j < 7; j++) {
+          if (arr[j] < arr[i]) less++;
+        }
+        idx = idx * (7 - i) + less;
+      }
+      return idx;
+    }
+
+    function indexToPerm7(idx) {
+      const items = [0, 1, 2, 3, 4, 5, 6]; // 6 corresponds to cubie 7
+      const arr = new Array(7);
+
+      for (let i = 0; i < 7; i++) {
+        const f = FACT[6 - i];
+        const pos = (idx / f) | 0;
+        idx %= f;
+        arr[i] = items.splice(pos, 1)[0];
+      }
+
+      const cp = [0, 1, 2, 3, 4, 5, 6, 7];
+      for (let i = 0; i < 7; i++) {
+        cp[MOVABLE[i]] = arr[i] < 6 ? arr[i] : 7;
+      }
+      cp[6] = 6;
+      return cp;
+    }
+
+    function ori7ToIndex(co) {
+      let idx = 0;
+      for (let i = 0; i < 6; i++) {
+        idx = idx * 3 + co[MOVABLE[i]];
+      }
+      return idx;
+    }
+
+    function indexToOri7(idx) {
+      const co = new Array(8).fill(0);
+      let sum = 0;
+      for (let i = 5; i >= 0; i--) {
+        const v = idx % 3;
+        idx = (idx / 3) | 0;
+        co[MOVABLE[i]] = v;
+        sum += v;
+      }
+      co[7] = (3 - (sum % 3)) % 3; // DRB determined
+      co[6] = 0; // DBL fixed
+      return co;
+    }
+
+    function buildMoveTables() {
+      const solvedCp = [0,1,2,3,4,5,6,7];
+      const solvedCo = [0,0,0,0,0,0,0,0];
+
+      for (let ori = 0; ori < NUM_ORI; ori++) {
+        const baseCo = indexToOri7(ori);
+        for (let face = 0; face < 3; face++) {
+          let cp = solvedCp.slice();
+          let co = baseCo.slice();
+          for (let power = 0; power < 3; power++) {
+            ({ cp, co } = applyFaceMove(cp, co, face));
+            oriMove[face * 3 + power][ori] = ori7ToIndex(co);
+          }
+        }
+      }
+
+      for (let perm = 0; perm < NUM_PERM; perm++) {
+        const baseCp = indexToPerm7(perm);
+        for (let face = 0; face < 3; face++) {
+          let cp = baseCp.slice();
+          let co = solvedCo.slice();
+          for (let power = 0; power < 3; power++) {
+            ({ cp, co } = applyFaceMove(cp, co, face));
+            permMove[face * 3 + power][perm] = perm7ToIndex(cp);
+          }
+        }
+      }
+    }
+
+    function buildDistTable(moveTable, distTable, size) {
+      distTable.fill(255);
+      const queue = new Uint32Array(size);
+      let head = 0;
+      let tail = 0;
+
+      queue[tail++] = 0;
+      distTable[0] = 0;
+
+      while (head < tail) {
+        const state = queue[head++];
+        const nextDepth = distTable[state] + 1;
+
+        for (let m = 0; m < 9; m++) {
+          const next = moveTable[m][state];
+          if (distTable[next] === 255) {
+            distTable[next] = nextDepth;
+            queue[tail++] = next;
+          }
+        }
+      }
+    }
+
+    function randomInt(max) {
+      if (window.crypto && crypto.getRandomValues) {
+        const arr = new Uint32Array(1);
+        let x;
+        const limit = Math.floor(0x100000000 / max) * max;
+        do {
+          crypto.getRandomValues(arr);
+          x = arr[0];
+        } while (x >= limit);
+        return x % max;
+      }
+      return Math.floor(Math.random() * max);
+    }
+
+    function randomPerm7Index() {
+      const arr = [0, 1, 2, 3, 4, 5, 6];
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = randomInt(i + 1);
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+
+      let idx = 0;
+      for (let i = 0; i < 7; i++) {
+        let less = 0;
+        for (let j = i + 1; j < 7; j++) {
+          if (arr[j] < arr[i]) less++;
+        }
+        idx = idx * (7 - i) + less;
+      }
+      return idx;
+    }
+
+    function randomOri7Index() {
+      const vals = new Array(6);
+      let idx = 0;
+      for (let i = 0; i < 6; i++) {
+        vals[i] = randomInt(3);
+        idx = idx * 3 + vals[i];
+      }
+      return idx;
+    }
+
+    function randomState() {
       return {
-        U: Array(4).fill("U"),
-        D: Array(4).fill("D"),
-        R: Array(4).fill("R"),
-        L: Array(4).fill("L"),
-        F: Array(4).fill("F"),
-        B: Array(4).fill("B")
+        perm: randomPerm7Index(),
+        ori: randomOri7Index()
       };
     }
 
-    function rotateFaceCW(face) {
-      return [face[2], face[0], face[3], face[1]];
+    function heuristic(ori, perm) {
+      return Math.max(oriDist[ori], permDist[perm]);
     }
 
-    function moveU(c) {
-      c.U = rotateFaceCW(c.U);
-      const t = [c.F[0], c.F[1]];
-      [c.F[0], c.F[1]] = [c.L[0], c.L[1]];
-      [c.L[0], c.L[1]] = [c.B[0], c.B[1]];
-      [c.B[0], c.B[1]] = [c.R[0], c.R[1]];
-      [c.R[0], c.R[1]] = t;
+    function dfs(ori, perm, depth, lastFace, path) {
+      const h = heuristic(ori, perm);
+      if (h > depth) return false;
+      if (depth === 0) return ori === 0 && perm === 0;
+
+      for (let face = 0; face < 3; face++) {
+        if (face === lastFace) continue;
+
+        for (let power = 0; power < 3; power++) {
+          const move = face * 3 + power;
+          const nextOri = oriMove[move][ori];
+          const nextPerm = permMove[move][perm];
+          path.push(move);
+
+          if (dfs(nextOri, nextPerm, depth - 1, face, path)) return true;
+
+          path.pop();
+        }
+      }
+      return false;
     }
 
-    function moveD(c) {
-      c.D = rotateFaceCW(c.D);
-      const t = [c.F[2], c.F[3]];
-      [c.F[2], c.F[3]] = [c.R[2], c.R[3]];
-      [c.R[2], c.R[3]] = [c.B[2], c.B[3]];
-      [c.B[2], c.B[3]] = [c.L[2], c.L[3]];
-      [c.L[2], c.L[3]] = t;
+    function solveOptimal(ori, perm, minDepth = 4, maxDepth = 20) {
+      const start = heuristic(ori, perm);
+      const path = [];
+
+      for (let depth = Math.max(start, minDepth); depth <= maxDepth; depth++) {
+        path.length = 0;
+        if (dfs(ori, perm, depth, -1, path)) {
+          return path.slice();
+        }
+      }
+      throw new Error("No solution found.");
     }
 
-    function moveR(c) {
-      c.R = rotateFaceCW(c.R);
-      const t = [c.U[1], c.U[3]];
-      [c.U[1], c.U[3]] = [c.F[1], c.F[3]];
-      [c.F[1], c.F[3]] = [c.D[1], c.D[3]];
-      [c.D[1], c.D[3]] = [c.B[2], c.B[0]];
-      [c.B[2], c.B[0]] = t;
+    function inverseMove(move) {
+      const face = (move / 3) | 0;
+      const power = move % 3;
+      return face * 3 + INV_SUFFIX_INDEX[power];
     }
 
-    function moveL(c) {
-      c.L = rotateFaceCW(c.L);
-      const t = [c.U[0], c.U[2]];
-      [c.U[0], c.U[2]] = [c.B[3], c.B[1]];
-      [c.B[3], c.B[1]] = [c.D[2], c.D[0]];
-      [c.D[2], c.D[0]] = [c.F[0], c.F[2]];
-      [c.F[0], c.F[2]] = t;
+    function moveToString(move) {
+      const face = (move / 3) | 0;
+      const power = move % 3;
+      return FACE_NAMES[face] + SUFFIXES[power];
     }
 
-    function moveF(c) {
-      c.F = rotateFaceCW(c.F);
-      const t = [c.U[2], c.U[3]];
-      [c.U[2], c.U[3]] = [c.L[3], c.L[1]];
-      [c.L[3], c.L[1]] = [c.D[1], c.D[0]];
-      [c.D[1], c.D[0]] = [c.R[0], c.R[2]];
-      [c.R[0], c.R[2]] = t;
+    function solutionToScramble(solutionMoves) {
+      const out = [];
+      for (let i = solutionMoves.length - 1; i >= 0; i--) {
+        out.push(moveToString(inverseMove(solutionMoves[i])));
+      }
+      return out.join(" ");
     }
 
-    function moveB(c) {
-      c.B = rotateFaceCW(c.B);
-      const t = [c.U[0], c.U[1]];
-      [c.U[0], c.U[1]] = [c.R[1], c.R[3]];
-      [c.R[1], c.R[3]] = [c.D[3], c.D[2]];
-      [c.D[3], c.D[2]] = [c.L[2], c.L[0]];
-      [c.L[2], c.L[0]] = t;
+    function solved2x2State() {
+      return {
+        cp: [0, 1, 2, 3, 4, 5, 6, 7],
+        co: [0, 0, 0, 0, 0, 0, 0, 0]
+      };
     }
 
-    const MOVE_FUNCS = { U: moveU, D: moveD, R: moveR, L: moveL, F: moveF, B: moveB };
-
-    function applyMove(cube, token) {
-      const face = token[0];
-      const fn = MOVE_FUNCS[face];
-      if (!fn) return;
+    function applyMoveToken(state, token) {
+      const faceMap = { U: 0, R: 1, F: 2 };
+      const face = faceMap[token[0]];
+      if (face == null) return;
 
       let turns = 1;
       if (token.endsWith("2")) turns = 2;
       else if (token.endsWith("'")) turns = 3;
 
-      for (let i = 0; i < turns; i++) fn(cube);
+      for (let i = 0; i < turns; i++) {
+        const next = applyFaceMove(state.cp, state.co, face);
+        state.cp = next.cp;
+        state.co = next.co;
+      }
     }
 
-    function cubeFromScramble(scramble) {
-      const cube = createSolvedCube();
+    function stateFromScramble(scramble) {
+      const state = solved2x2State();
       const tokens = scramble.trim().split(/\s+/).filter(Boolean);
-      for (const token of tokens) applyMove(cube, token);
-      return cube;
+      for (const token of tokens) applyMoveToken(state, token);
+      return state;
+    }
+
+    function topFaceColorsFromState(state) {
+      const positions = [2, 3, 1, 0]; // ULB UBR / UFL URF
+      return positions.map((pos) => {
+        const cubie = state.cp[pos];
+        const ori = state.co[pos];
+        const stickerIndex = TOP_COLOR_INDEX[ori];
+        return CORNER_COLORS[cubie][stickerIndex];
+      });
     }
 
     function renderTopFace(scramble) {
       const preview = document.getElementById("topFacePreview");
-      const cube = cubeFromScramble(scramble);
+      const state = stateFromScramble(scramble);
+      const colors = topFaceColorsFromState(state);
 
-      preview.innerHTML = cube.U.map(face =>
+      preview.innerHTML = colors.map(face =>
         `<div class="top-face-sticker" style="background:${FACE_COLORS[face]}"></div>`
       ).join("");
     }
 
-    async function makeScramble() {
-      try {
-        statusEl.textContent = "Generating random-state scramble…";
-        const alg = await randomScrambleForEvent("222");
-        const scramble = alg.toString();
+    async function init() {
+      const t0 = performance.now();
 
-        scrambleEl.textContent = scramble;
-        renderTopFace(scramble);
-        statusEl.textContent = "Ready.";
-      } catch (err) {
-        scrambleEl.textContent = "Error";
-        statusEl.textContent = err?.message || "Failed to generate scramble.";
-      }
+      statusEl.textContent = "Building move tables…";
+      await new Promise(r => setTimeout(r, 0));
+      buildMoveTables();
+
+      statusEl.textContent = "Building orientation pruning table…";
+      await new Promise(r => setTimeout(r, 0));
+      buildDistTable(oriMove, oriDist, NUM_ORI);
+
+      statusEl.textContent = "Building permutation pruning table…";
+      await new Promise(r => setTimeout(r, 0));
+      buildDistTable(permMove, permDist, NUM_PERM);
+
+      const t1 = performance.now();
+      metaEl.textContent = `Setup finished in ${(t1 - t0).toFixed(0)} ms`;
+
+      generateBtn.disabled = false;
+      copyBtn.disabled = false;
+      statusEl.textContent = "Ready.";
+
+      generateScramble();
     }
 
-    document.getElementById("generateBtn").addEventListener("click", makeScramble);
+    function generateScramble() {
+      scrambleEl.textContent = "Generating…";
+      statusEl.textContent = "Generating random-state U/F/R scramble…";
+
+      setTimeout(() => {
+        try {
+          const state = randomState();
+          const solution = solveOptimal(state.ori, state.perm, 4, 20);
+          const scramble = solutionToScramble(solution);
+
+          scrambleEl.textContent = scramble;
+          renderTopFace(scramble);
+          statusEl.textContent = `Length: ${solution.length}`;
+        } catch (err) {
+          scrambleEl.textContent = "Error";
+          statusEl.textContent = err.message || "Failed.";
+          document.getElementById("topFacePreview").innerHTML = "";
+        }
+      }, 0);
+    }
+
+    generateBtn.addEventListener("click", generateScramble);
 
     copyBtn.addEventListener("click", async () => {
       try {
@@ -277,7 +557,7 @@
       }
     });
 
-    makeScramble();
+    init();
   </script>
 </body>
 </html>

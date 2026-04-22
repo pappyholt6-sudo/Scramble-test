@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>2x2 RUF Scramble Generator</title>
+  <title>2x2 Random-State Scramble Generator</title>
   <style>
     :root {
       --bg: #0f1115;
@@ -13,9 +13,7 @@
       --accent: #4f8cff;
       --border: #2a3140;
     }
-
     * { box-sizing: border-box; }
-
     body {
       margin: 0;
       min-height: 100vh;
@@ -26,35 +24,30 @@
       font-family: system-ui, Arial, sans-serif;
       padding: 24px;
     }
-
     .card {
-      width: min(820px, 100%);
+      width: min(900px, 100%);
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: 18px;
       padding: 24px;
       box-shadow: 0 10px 30px rgba(0,0,0,0.25);
     }
-
     h1 {
       margin: 0 0 8px;
       font-size: clamp(1.5rem, 3vw, 2rem);
     }
-
     p {
       margin: 0 0 18px;
       color: var(--muted);
     }
-
     .scramble-row {
       display: flex;
       align-items: center;
       gap: 12px;
       flex-wrap: wrap;
     }
-
     .scramble {
-      font-size: clamp(1.35rem, 3.8vw, 2.2rem);
+      font-size: clamp(1.25rem, 3.5vw, 2rem);
       line-height: 1.4;
       padding: 18px;
       background: #0d1016;
@@ -64,9 +57,8 @@
       display: flex;
       align-items: center;
       word-break: break-word;
-      flex: 1 1 420px;
+      flex: 1 1 520px;
     }
-
     .top-face-preview {
       display: grid;
       grid-template-columns: repeat(2, 18px);
@@ -79,14 +71,18 @@
       width: max-content;
       flex: 0 0 auto;
     }
-
     .top-face-sticker {
       width: 18px;
       height: 18px;
       border-radius: 3px;
       border: 1px solid rgba(0,0,0,0.18);
     }
-
+    .row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 18px;
+    }
     .status {
       font-size: 1rem;
       min-height: 58px;
@@ -99,14 +95,6 @@
       display: flex;
       align-items: center;
     }
-
-    .row {
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-      margin-top: 18px;
-    }
-
     button {
       border: 0;
       background: var(--accent);
@@ -117,11 +105,7 @@
       font-weight: 600;
       font: inherit;
     }
-
-    button:hover:enabled {
-      filter: brightness(1.08);
-    }
-
+    button:hover:enabled { filter: brightness(1.08); }
     .meta {
       margin-top: 12px;
       color: var(--muted);
@@ -131,11 +115,11 @@
 </head>
 <body>
   <main class="card">
-    <h1>2x2 RUF Scramble Generator</h1>
-    <p>Only uses R, U, F moves. Includes simple top-face preview.</p>
+    <h1>2x2 Random-State Scramble Generator</h1>
+    <p>True random-state. May include U, F, R, D, B, L moves.</p>
 
     <div class="scramble-row">
-      <div class="scramble" id="scramble"></div>
+      <div class="scramble" id="scramble">Loading…</div>
       <div id="topFacePreview" class="top-face-preview" title="Top face preview"></div>
     </div>
 
@@ -144,43 +128,16 @@
       <button id="copyBtn">Copy</button>
     </div>
 
-    <div class="status" id="status">Ready.</div>
-    <div class="meta">Not full-state official WCA random-state. Stable R/U/F-only generator.</div>
+    <div class="status" id="status">Loading scramble engine…</div>
+    <div class="meta">Use on GitHub Pages or another http/https server.</div>
   </main>
 
-  <script>
+  <script type="module">
+    import { randomScrambleForEvent } from "https://cdn.cubing.net/v0/js/cubing/scramble";
+
     const scrambleEl = document.getElementById("scramble");
     const statusEl = document.getElementById("status");
     const copyBtn = document.getElementById("copyBtn");
-
-    const FACE_NAMES = ["U", "R", "F"];
-    const SUFFIXES = ["", "'", "2"];
-
-    // 0 URF, 1 UFL, 2 ULB, 3 UBR, 4 DFR, 5 DLF, 6 DBL, 7 DRB
-    const MOVE_CP = [
-      [3, 0, 1, 2, 4, 5, 6, 7], // U
-      [4, 1, 2, 0, 7, 5, 6, 3], // R
-      [1, 5, 2, 3, 0, 4, 6, 7]  // F
-    ];
-
-    const MOVE_CO = [
-      [0, 0, 0, 0, 0, 0, 0, 0], // U
-      [2, 0, 0, 1, 1, 0, 0, 2], // R
-      [1, 2, 0, 0, 2, 1, 0, 0]  // F
-    ];
-
-    const CORNER_COLORS = [
-      ["U", "R", "F"],
-      ["U", "F", "L"],
-      ["U", "L", "B"],
-      ["U", "B", "R"],
-      ["D", "F", "R"],
-      ["D", "L", "F"],
-      ["D", "B", "L"],
-      ["D", "R", "B"]
-    ];
-
-    const TOP_COLOR_INDEX = [0, 2, 1];
 
     const FACE_COLORS = {
       U: "#ffffff",
@@ -191,109 +148,121 @@
       L: "#ff5800"
     };
 
-    function randomInt(max) {
-      if (window.crypto && crypto.getRandomValues) {
-        const arr = new Uint32Array(1);
-        let x;
-        const limit = Math.floor(0x100000000 / max) * max;
-        do {
-          crypto.getRandomValues(arr);
-          x = arr[0];
-        } while (x >= limit);
-        return x % max;
-      }
-      return Math.floor(Math.random() * max);
-    }
-
-    function solved2x2State() {
+    function createSolvedCube() {
       return {
-        cp: [0, 1, 2, 3, 4, 5, 6, 7],
-        co: [0, 0, 0, 0, 0, 0, 0, 0]
+        U: Array(4).fill("U"),
+        D: Array(4).fill("D"),
+        R: Array(4).fill("R"),
+        L: Array(4).fill("L"),
+        F: Array(4).fill("F"),
+        B: Array(4).fill("B")
       };
     }
 
-    function applyFaceMove(state, face) {
-      const newCp = new Array(8);
-      const newCo = new Array(8);
-      const mcp = MOVE_CP[face];
-      const mco = MOVE_CO[face];
-
-      for (let i = 0; i < 8; i++) {
-        const oldPos = mcp[i];
-        newCp[i] = state.cp[oldPos];
-        newCo[i] = (state.co[oldPos] + mco[i]) % 3;
-      }
-
-      state.cp = newCp;
-      state.co = newCo;
+    function rotateFaceCW(face) {
+      return [face[2], face[0], face[3], face[1]];
     }
 
-    function applyMoveToken(state, token) {
-      const faceMap = { U: 0, R: 1, F: 2 };
-      const face = faceMap[token[0]];
-      if (face == null) return;
+    function moveU(c) {
+      c.U = rotateFaceCW(c.U);
+      const t = [c.F[0], c.F[1]];
+      [c.F[0], c.F[1]] = [c.L[0], c.L[1]];
+      [c.L[0], c.L[1]] = [c.B[0], c.B[1]];
+      [c.B[0], c.B[1]] = [c.R[0], c.R[1]];
+      [c.R[0], c.R[1]] = t;
+    }
+
+    function moveD(c) {
+      c.D = rotateFaceCW(c.D);
+      const t = [c.F[2], c.F[3]];
+      [c.F[2], c.F[3]] = [c.R[2], c.R[3]];
+      [c.R[2], c.R[3]] = [c.B[2], c.B[3]];
+      [c.B[2], c.B[3]] = [c.L[2], c.L[3]];
+      [c.L[2], c.L[3]] = t;
+    }
+
+    function moveR(c) {
+      c.R = rotateFaceCW(c.R);
+      const t = [c.U[1], c.U[3]];
+      [c.U[1], c.U[3]] = [c.F[1], c.F[3]];
+      [c.F[1], c.F[3]] = [c.D[1], c.D[3]];
+      [c.D[1], c.D[3]] = [c.B[2], c.B[0]];
+      [c.B[2], c.B[0]] = t;
+    }
+
+    function moveL(c) {
+      c.L = rotateFaceCW(c.L);
+      const t = [c.U[0], c.U[2]];
+      [c.U[0], c.U[2]] = [c.B[3], c.B[1]];
+      [c.B[3], c.B[1]] = [c.D[2], c.D[0]];
+      [c.D[2], c.D[0]] = [c.F[0], c.F[2]];
+      [c.F[0], c.F[2]] = t;
+    }
+
+    function moveF(c) {
+      c.F = rotateFaceCW(c.F);
+      const t = [c.U[2], c.U[3]];
+      [c.U[2], c.U[3]] = [c.L[3], c.L[1]];
+      [c.L[3], c.L[1]] = [c.D[1], c.D[0]];
+      [c.D[1], c.D[0]] = [c.R[0], c.R[2]];
+      [c.R[0], c.R[2]] = t;
+    }
+
+    function moveB(c) {
+      c.B = rotateFaceCW(c.B);
+      const t = [c.U[0], c.U[1]];
+      [c.U[0], c.U[1]] = [c.R[1], c.R[3]];
+      [c.R[1], c.R[3]] = [c.D[3], c.D[2]];
+      [c.D[3], c.D[2]] = [c.L[2], c.L[0]];
+      [c.L[2], c.L[0]] = t;
+    }
+
+    const MOVE_FUNCS = { U: moveU, D: moveD, R: moveR, L: moveL, F: moveF, B: moveB };
+
+    function applyMove(cube, token) {
+      const face = token[0];
+      const fn = MOVE_FUNCS[face];
+      if (!fn) return;
 
       let turns = 1;
       if (token.endsWith("2")) turns = 2;
       else if (token.endsWith("'")) turns = 3;
 
-      for (let i = 0; i < turns; i++) applyFaceMove(state, face);
+      for (let i = 0; i < turns; i++) fn(cube);
     }
 
-    function stateFromScramble(scramble) {
-      const state = solved2x2State();
+    function cubeFromScramble(scramble) {
+      const cube = createSolvedCube();
       const tokens = scramble.trim().split(/\s+/).filter(Boolean);
-      for (const token of tokens) applyMoveToken(state, token);
-      return state;
-    }
-
-    function topFaceColorsFromState(state) {
-      const positions = [2, 3, 1, 0];
-      return positions.map((pos) => {
-        const cubie = state.cp[pos];
-        const ori = state.co[pos];
-        return CORNER_COLORS[cubie][TOP_COLOR_INDEX[ori]];
-      });
+      for (const token of tokens) applyMove(cube, token);
+      return cube;
     }
 
     function renderTopFace(scramble) {
       const preview = document.getElementById("topFacePreview");
-      const state = stateFromScramble(scramble);
-      const colors = topFaceColorsFromState(state);
+      const cube = cubeFromScramble(scramble);
 
-      preview.innerHTML = colors.map(face =>
+      preview.innerHTML = cube.U.map(face =>
         `<div class="top-face-sticker" style="background:${FACE_COLORS[face]}"></div>`
       ).join("");
     }
 
-    function generateRUFSequence(length = 11) {
-      const moves = [];
-      let lastFace = -1;
+    async function makeScramble() {
+      try {
+        statusEl.textContent = "Generating random-state scramble…";
+        const alg = await randomScrambleForEvent("222");
+        const scramble = alg.toString();
 
-      for (let i = 0; i < length; i++) {
-        let face;
-        do {
-          face = randomInt(3);
-        } while (face === lastFace);
-
-        lastFace = face;
-        const suffix = SUFFIXES[randomInt(3)];
-        moves.push(FACE_NAMES[face] + suffix);
+        scrambleEl.textContent = scramble;
+        renderTopFace(scramble);
+        statusEl.textContent = "Ready.";
+      } catch (err) {
+        scrambleEl.textContent = "Error";
+        statusEl.textContent = err?.message || "Failed to generate scramble.";
       }
-
-      return moves.join(" ");
     }
 
-    function generateScramble() {
-      const length = 9 + randomInt(3); // 9-11
-      const scramble = generateRUFSequence(length);
-
-      scrambleEl.textContent = scramble;
-      renderTopFace(scramble);
-      statusEl.textContent = `Length: ${length}`;
-    }
-
-    document.getElementById("generateBtn").addEventListener("click", generateScramble);
+    document.getElementById("generateBtn").addEventListener("click", makeScramble);
 
     copyBtn.addEventListener("click", async () => {
       try {
@@ -308,7 +277,7 @@
       }
     });
 
-    generateScramble();
+    makeScramble();
   </script>
 </body>
 </html>

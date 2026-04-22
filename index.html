@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>2x2 Random-State Scramble Generator</title>
+  <title>2x2 RUF Scramble Generator</title>
   <style>
     :root {
       --bg: #0f1115;
@@ -122,11 +122,6 @@
       filter: brightness(1.08);
     }
 
-    button:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-
     .meta {
       margin-top: 12px;
       color: var(--muted);
@@ -136,34 +131,30 @@
 </head>
 <body>
   <main class="card">
-    <h1>2x2 Random-State Scramble Generator</h1>
-    <p>Random-state. Moves limited to R, U, F only. Includes top-face preview.</p>
+    <h1>2x2 RUF Scramble Generator</h1>
+    <p>Only uses R, U, F moves. Includes simple top-face preview.</p>
 
     <div class="scramble-row">
-      <div class="scramble" id="scramble">Initializing…</div>
+      <div class="scramble" id="scramble"></div>
       <div id="topFacePreview" class="top-face-preview" title="Top face preview"></div>
     </div>
 
     <div class="row">
-      <button id="generateBtn" disabled>Generate</button>
-      <button id="copyBtn" disabled>Copy</button>
+      <button id="generateBtn">Generate</button>
+      <button id="copyBtn">Copy</button>
     </div>
 
-    <div class="status" id="status">Building pruning tables…</div>
-    <div class="meta" id="meta"></div>
+    <div class="status" id="status">Ready.</div>
+    <div class="meta">Not full-state official WCA random-state. Stable R/U/F-only generator.</div>
   </main>
 
   <script>
-    const FACE_NAMES = ["U", "R", "F"];
-    const SUFFIXES = ["", "2", "'"];
-    const INV_SUFFIX_INDEX = [2, 1, 0];
-    const FACT = [1, 1, 2, 6, 24, 120, 720, 5040, 40320];
-
-    const generateBtn = document.getElementById("generateBtn");
-    const copyBtn = document.getElementById("copyBtn");
     const scrambleEl = document.getElementById("scramble");
     const statusEl = document.getElementById("status");
-    const metaEl = document.getElementById("meta");
+    const copyBtn = document.getElementById("copyBtn");
+
+    const FACE_NAMES = ["U", "R", "F"];
+    const SUFFIXES = ["", "'", "2"];
 
     // 0 URF, 1 UFL, 2 ULB, 3 UBR, 4 DFR, 5 DLF, 6 DBL, 7 DRB
     const MOVE_CP = [
@@ -177,14 +168,6 @@
       [2, 0, 0, 1, 1, 0, 0, 2], // R
       [1, 2, 0, 0, 2, 1, 0, 0]  // F
     ];
-
-    const NUM_ORI = 2187;
-    const NUM_PERM = 40320;
-
-    const oriMove = Array.from({ length: 9 }, () => new Uint16Array(NUM_ORI));
-    const permMove = Array.from({ length: 9 }, () => new Uint16Array(NUM_PERM));
-    const oriDist = new Uint8Array(NUM_ORI);
-    const permDist = new Uint8Array(NUM_PERM);
 
     const CORNER_COLORS = [
       ["U", "R", "F"],
@@ -208,113 +191,6 @@
       L: "#ff5800"
     };
 
-    function applyFaceMove(cp, co, face) {
-      const newCp = new Array(8);
-      const newCo = new Array(8);
-      const mcp = MOVE_CP[face];
-      const mco = MOVE_CO[face];
-
-      for (let i = 0; i < 8; i++) {
-        const oldPos = mcp[i];
-        newCp[i] = cp[oldPos];
-        newCo[i] = (co[oldPos] + mco[i]) % 3;
-      }
-
-      return { cp: newCp, co: newCo };
-    }
-
-    function oriToIndex(co) {
-      let idx = 0;
-      for (let i = 0; i < 7; i++) idx = idx * 3 + co[i];
-      return idx;
-    }
-
-    function indexToOri(idx) {
-      const co = new Array(8).fill(0);
-      let sum = 0;
-      for (let i = 6; i >= 0; i--) {
-        co[i] = idx % 3;
-        sum += co[i];
-        idx = (idx / 3) | 0;
-      }
-      co[7] = (3 - (sum % 3)) % 3;
-      return co;
-    }
-
-    function permToIndex(cp) {
-      let idx = 0;
-      for (let i = 0; i < 8; i++) {
-        let less = 0;
-        for (let j = i + 1; j < 8; j++) {
-          if (cp[j] < cp[i]) less++;
-        }
-        idx = idx * (8 - i) + less;
-      }
-      return idx;
-    }
-
-    function indexToPerm(idx) {
-      const items = [0, 1, 2, 3, 4, 5, 6, 7];
-      const cp = new Array(8);
-      for (let i = 0; i < 8; i++) {
-        const f = FACT[7 - i];
-        const pos = (idx / f) | 0;
-        idx %= f;
-        cp[i] = items.splice(pos, 1)[0];
-      }
-      return cp;
-    }
-
-    function buildMoveTables() {
-      const solvedCp = [0,1,2,3,4,5,6,7];
-      const solvedCo = [0,0,0,0,0,0,0,0];
-
-      for (let ori = 0; ori < NUM_ORI; ori++) {
-        const baseCo = indexToOri(ori);
-        for (let face = 0; face < 3; face++) {
-          let cp = solvedCp.slice();
-          let co = baseCo.slice();
-          for (let power = 0; power < 3; power++) {
-            ({ cp, co } = applyFaceMove(cp, co, face));
-            oriMove[face * 3 + power][ori] = oriToIndex(co);
-          }
-        }
-      }
-
-      for (let perm = 0; perm < NUM_PERM; perm++) {
-        const baseCp = indexToPerm(perm);
-        for (let face = 0; face < 3; face++) {
-          let cp = baseCp.slice();
-          let co = solvedCo.slice();
-          for (let power = 0; power < 3; power++) {
-            ({ cp, co } = applyFaceMove(cp, co, face));
-            permMove[face * 3 + power][perm] = permToIndex(cp);
-          }
-        }
-      }
-    }
-
-    function buildDistTable(moveTable, distTable, size) {
-      distTable.fill(255);
-      const queue = new Uint32Array(size);
-      let head = 0;
-      let tail = 0;
-      queue[tail++] = 0;
-      distTable[0] = 0;
-
-      while (head < tail) {
-        const state = queue[head++];
-        const nextDepth = distTable[state] + 1;
-        for (let m = 0; m < 9; m++) {
-          const next = moveTable[m][state];
-          if (distTable[next] === 255) {
-            distTable[next] = nextDepth;
-            queue[tail++] = next;
-          }
-        }
-      }
-    }
-
     function randomInt(max) {
       if (window.crypto && crypto.getRandomValues) {
         const arr = new Uint32Array(1);
@@ -329,94 +205,27 @@
       return Math.floor(Math.random() * max);
     }
 
-    function shuffle(arr) {
-      for (let i = arr.length - 1; i > 0; i--) {
-        const j = randomInt(i + 1);
-        [arr[i], arr[j]] = [arr[j], arr[i]];
-      }
-      return arr;
-    }
-
-    function randomState() {
-      const cp = shuffle([0,1,2,3,4,5,6,7]);
-      const co = new Array(8).fill(0);
-      let sum = 0;
-      for (let i = 0; i < 7; i++) {
-        co[i] = randomInt(3);
-        sum += co[i];
-      }
-      co[7] = (3 - (sum % 3)) % 3;
-
-      return {
-        perm: permToIndex(cp),
-        ori: oriToIndex(co)
-      };
-    }
-
-    function heuristic(ori, perm) {
-      return Math.max(oriDist[ori], permDist[perm]);
-    }
-
-    function dfs(ori, perm, depth, lastFace, path) {
-      const h = heuristic(ori, perm);
-      if (h > depth) return false;
-      if (depth === 0) return ori === 0 && perm === 0;
-
-      for (let face = 0; face < 3; face++) {
-        if (face === lastFace) continue;
-
-        for (let power = 0; power < 3; power++) {
-          const move = face * 3 + power;
-          const nextOri = oriMove[move][ori];
-          const nextPerm = permMove[move][perm];
-          path.push(move);
-
-          if (dfs(nextOri, nextPerm, depth - 1, face, path)) return true;
-
-          path.pop();
-        }
-      }
-      return false;
-    }
-
-    function solveOptimal(ori, perm, minDepth = 0, maxDepth = 20) {
-      const start = heuristic(ori, perm);
-      const path = [];
-
-      for (let depth = Math.max(start, minDepth); depth <= maxDepth; depth++) {
-        path.length = 0;
-        if (dfs(ori, perm, depth, -1, path)) {
-          return path.slice();
-        }
-      }
-      throw new Error("No solution found within depth limit.");
-    }
-
-    function inverseMove(move) {
-      const face = (move / 3) | 0;
-      const power = move % 3;
-      return face * 3 + INV_SUFFIX_INDEX[power];
-    }
-
-    function moveToString(move) {
-      const face = (move / 3) | 0;
-      const power = move % 3;
-      return FACE_NAMES[face] + SUFFIXES[power];
-    }
-
-    function solutionToScramble(solutionMoves) {
-      const out = [];
-      for (let i = solutionMoves.length - 1; i >= 0; i--) {
-        out.push(moveToString(inverseMove(solutionMoves[i])));
-      }
-      return out.join(" ");
-    }
-
     function solved2x2State() {
       return {
         cp: [0, 1, 2, 3, 4, 5, 6, 7],
         co: [0, 0, 0, 0, 0, 0, 0, 0]
       };
+    }
+
+    function applyFaceMove(state, face) {
+      const newCp = new Array(8);
+      const newCo = new Array(8);
+      const mcp = MOVE_CP[face];
+      const mco = MOVE_CO[face];
+
+      for (let i = 0; i < 8; i++) {
+        const oldPos = mcp[i];
+        newCp[i] = state.cp[oldPos];
+        newCo[i] = (state.co[oldPos] + mco[i]) % 3;
+      }
+
+      state.cp = newCp;
+      state.co = newCo;
     }
 
     function applyMoveToken(state, token) {
@@ -428,31 +237,23 @@
       if (token.endsWith("2")) turns = 2;
       else if (token.endsWith("'")) turns = 3;
 
-      for (let i = 0; i < turns; i++) {
-        const next = applyFaceMove(state.cp, state.co, face);
-        state.cp = next.cp;
-        state.co = next.co;
-      }
+      for (let i = 0; i < turns; i++) applyFaceMove(state, face);
     }
 
     function stateFromScramble(scramble) {
       const state = solved2x2State();
       const tokens = scramble.trim().split(/\s+/).filter(Boolean);
-
-      for (const token of tokens) {
-        applyMoveToken(state, token);
-      }
-
+      for (const token of tokens) applyMoveToken(state, token);
       return state;
     }
 
     function topFaceColorsFromState(state) {
-      const positions = [2, 3, 1, 0]; // ULB UBR / UFL URF
+      // ULB UBR / UFL URF
+      const positions = [2, 3, 1, 0];
       return positions.map((pos) => {
         const cubie = state.cp[pos];
         const ori = state.co[pos];
-        const stickerIndex = TOP_COLOR_INDEX[ori];
-        return CORNER_COLORS[cubie][stickerIndex];
+        return CORNER_COLORS[cubie][TOP_COLOR_INDEX[ori]];
       });
     }
 
@@ -466,56 +267,36 @@
       ).join("");
     }
 
-    async function init() {
-      const t0 = performance.now();
+    function generateRUFSequence(length = 11) {
+      const moves = [];
+      let lastFace = -1;
 
-      statusEl.textContent = "Building move tables…";
-      await new Promise(r => setTimeout(r, 0));
-      buildMoveTables();
+      for (let i = 0; i < length; i++) {
+        let face;
+        do {
+          face = randomInt(3);
+        } while (face === lastFace);
 
-      statusEl.textContent = "Building orientation pruning table…";
-      await new Promise(r => setTimeout(r, 0));
-      buildDistTable(oriMove, oriDist, NUM_ORI);
+        lastFace = face;
+        const suffix = SUFFIXES[randomInt(3)];
+        moves.push(FACE_NAMES[face] + suffix);
+      }
 
-      statusEl.textContent = "Building permutation pruning table…";
-      await new Promise(r => setTimeout(r, 0));
-      buildDistTable(permMove, permDist, NUM_PERM);
-
-      const t1 = performance.now();
-      statusEl.textContent = "Ready.";
-      metaEl.textContent = `Setup finished in ${(t1 - t0).toFixed(0)} ms`;
-      generateBtn.disabled = false;
-      copyBtn.disabled = false;
-
-      generateScramble();
+      return moves.join(" ");
     }
 
     function generateScramble() {
-      scrambleEl.textContent = "Generating…";
-      statusEl.textContent = "Searching random-state U/F/R scramble…";
+      // random walk in the RUF subgroup
+      // longer than 11 a bit, then trim feel by cancellation avoidance only
+      const length = 14 + randomInt(4); // 14-17
+      const scramble = generateRUFSequence(length);
 
-      setTimeout(() => {
-        try {
-          let state, solution, scramble;
-
-          do {
-            state = randomState();
-            solution = solveOptimal(state.ori, state.perm, 4, 20);
-            scramble = solutionToScramble(solution);
-          } while (solution.length < 4);
-
-          scrambleEl.textContent = scramble;
-          renderTopFace(scramble);
-          statusEl.textContent = `Optimal length: ${solution.length}`;
-        } catch (err) {
-          scrambleEl.textContent = "Error";
-          statusEl.textContent = err.message;
-          document.getElementById("topFacePreview").innerHTML = "";
-        }
-      }, 0);
+      scrambleEl.textContent = scramble;
+      renderTopFace(scramble);
+      statusEl.textContent = `Length: ${length}`;
     }
 
-    generateBtn.addEventListener("click", generateScramble);
+    document.getElementById("generateBtn").addEventListener("click", generateScramble);
 
     copyBtn.addEventListener("click", async () => {
       try {
@@ -530,7 +311,7 @@
       }
     });
 
-    init();
+    generateScramble();
   </script>
 </body>
 </html>

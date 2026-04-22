@@ -3,25 +3,25 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>WCA Scramble Tester</title>
+  <title>cubing.js WCA Scramble Tester</title>
   <style>
     :root {
       --bg: #0f1115;
       --panel: #171a21;
-      --panel-2: #1f2430;
+      --panel2: #1f2430;
       --text: #e8ecf1;
       --muted: #a9b3c1;
       --border: #2e3545;
       --accent: #6ea8fe;
-      --good: #35c759;
-      --bad: #ff5f57;
+      --ok: #35c759;
+      --err: #ff5f57;
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      font: 14px/1.4 system-ui, sans-serif;
       background: var(--bg);
       color: var(--text);
+      font: 14px/1.4 system-ui, sans-serif;
     }
     .wrap {
       max-width: 1200px;
@@ -34,9 +34,9 @@
     }
     .sub {
       color: var(--muted);
-      margin-bottom: 18px;
+      margin-bottom: 16px;
     }
-    .controls, .status, .results {
+    .box {
       background: var(--panel);
       border: 1px solid var(--border);
       border-radius: 14px;
@@ -54,17 +54,17 @@
       color: var(--muted);
       font-size: 12px;
     }
-    input, select, button, textarea {
+    input, textarea, button {
       width: 100%;
-      border: 1px solid var(--border);
-      background: var(--panel-2);
-      color: var(--text);
       border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--panel2);
+      color: var(--text);
       padding: 10px 12px;
       font: inherit;
     }
     textarea {
-      min-height: 110px;
+      min-height: 160px;
       resize: vertical;
     }
     .buttons {
@@ -76,9 +76,9 @@
     button {
       width: auto;
       cursor: pointer;
+      border: none;
       background: var(--accent);
       color: #08111f;
-      border: none;
       font-weight: 700;
     }
     button.secondary {
@@ -87,10 +87,10 @@
       border: 1px solid var(--border);
     }
     button:disabled {
-      opacity: 0.6;
+      opacity: 0.65;
       cursor: wait;
     }
-    .status-line {
+    .status {
       display: flex;
       gap: 8px;
       flex-wrap: wrap;
@@ -101,11 +101,10 @@
       padding: 4px 8px;
       border-radius: 999px;
       background: #263047;
-      color: var(--text);
       font-size: 12px;
     }
-    .ok { background: rgba(53, 199, 89, 0.15); color: #7ae59b; }
-    .err { background: rgba(255, 95, 87, 0.15); color: #ff8d86; }
+    .pill.ok { background: rgba(53,199,89,.15); color: #7ae59b; }
+    .pill.err { background: rgba(255,95,87,.15); color: #ff8d86; }
     .results {
       display: grid;
       gap: 14px;
@@ -114,7 +113,7 @@
       border: 1px solid var(--border);
       border-radius: 12px;
       overflow: hidden;
-      background: var(--panel-2);
+      background: var(--panel2);
     }
     .event-head {
       display: flex;
@@ -122,14 +121,14 @@
       gap: 12px;
       padding: 12px 14px;
       border-bottom: 1px solid var(--border);
-      background: rgba(255,255,255,0.02);
+      background: rgba(255,255,255,.02);
     }
     .event-name {
       font-weight: 700;
     }
     .meta {
-      color: var(--muted);
       font-size: 12px;
+      color: var(--muted);
     }
     .scrambles {
       padding: 10px 14px 14px;
@@ -145,39 +144,41 @@
       white-space: pre-wrap;
       word-break: break-word;
     }
-    .footer-note {
+    .note {
       color: var(--muted);
-      margin-top: 10px;
       font-size: 12px;
-    }
-    @media (max-width: 640px) {
-      .event-head {
-        flex-direction: column;
-      }
+      margin-top: 10px;
     }
   </style>
+
+  <!-- package-style cubing.js imports in browser -->
+  <script type="importmap">
+  {
+    "imports": {
+      "cubing/": "https://cdn.cubing.net/v0/js/cubing/"
+    }
+  }
+  </script>
 </head>
 <body>
   <div class="wrap">
-    <h1>WCA Scramble Tester</h1>
-    <div class="sub">
-      Generates scrambles with cubing.js for the official WCA event codes.
-    </div>
+    <h1>cubing.js WCA Scramble Tester</h1>
+    <div class="sub">Generate and compare scrambles for all official WCA events.</div>
 
-    <div class="controls">
+    <div class="box">
       <div class="grid">
         <div>
           <label for="count">Scrambles per event</label>
           <input id="count" type="number" min="1" max="50" value="5" />
         </div>
         <div>
-          <label for="parallel">Parallel requests</label>
+          <label for="parallel">Parallel events at once</label>
           <input id="parallel" type="number" min="1" max="8" value="3" />
         </div>
       </div>
 
       <div style="margin-top:14px;">
-        <label for="eventCodes">Event codes (one per line)</label>
+        <label for="eventCodes">WCA event codes</label>
         <textarea id="eventCodes">222
 333
 444
@@ -203,13 +204,13 @@ sq1
         <button id="clearBtn" class="secondary" type="button">Clear</button>
       </div>
 
-      <div class="footer-note">
-        Must be opened from <code>http://</code> or <code>https://</code>, not <code>file://</code>.
+      <div class="note">
+        Serve over <code>http://</code> or <code>https://</code>. Not <code>file://</code>.
       </div>
     </div>
 
-    <div class="status">
-      <div class="status-line" id="statusLine">
+    <div class="box">
+      <div class="status" id="statusLine">
         <span class="pill">Idle</span>
       </div>
     </div>
@@ -218,12 +219,12 @@ sq1
   </div>
 
   <script type="module">
-    import { randomScrambleForEvent } from "https://cdn.cubing.net/v0/js/cubing/scramble";
-    import { setSearchDebug } from "https://cdn.cubing.net/v0/js/cubing/search";
+    import { randomScrambleForEvent } from "cubing/scramble";
+    import { setSearchDebug } from "cubing/search";
 
     setSearchDebug({
       logPerf: false,
-      scramblePrefetchLevel: "none",
+      scramblePrefetchLevel: "none"
     });
 
     const generateBtn = document.getElementById("generateBtn");
@@ -271,13 +272,13 @@ sq1
 
     async function runWithConcurrency(tasks, limit) {
       const results = new Array(tasks.length);
-      let index = 0;
+      let nextIndex = 0;
 
       async function worker() {
         while (true) {
-          const current = index++;
-          if (current >= tasks.length) return;
-          results[current] = await tasks[current]();
+          const i = nextIndex++;
+          if (i >= tasks.length) return;
+          results[i] = await tasks[i]();
         }
       }
 
@@ -292,7 +293,7 @@ sq1
 
     function renderResults(data) {
       resultsEl.innerHTML = "";
-      const textBlocks = [];
+      const lines = [];
 
       for (const item of data) {
         const card = document.createElement("div");
@@ -314,38 +315,39 @@ sq1
 
         head.appendChild(left);
         head.appendChild(right);
-        card.appendChild(head);
 
         const body = document.createElement("div");
         body.className = "scrambles";
 
         if (item.ok) {
-          textBlocks.push(`[${item.eventCode}]`);
+          lines.push(`[${item.eventCode}]`);
           item.scrambles.forEach((scramble, idx) => {
             const div = document.createElement("div");
             div.className = "scramble";
             div.textContent = `${idx + 1}. ${scramble}`;
             body.appendChild(div);
-            textBlocks.push(`${idx + 1}. ${scramble}`);
+            lines.push(`${idx + 1}. ${scramble}`);
           });
+          lines.push("");
         } else {
           const div = document.createElement("div");
           div.className = "scramble";
           div.textContent = item.error;
           body.appendChild(div);
-          textBlocks.push(`[${item.eventCode}] ERROR: ${item.error}`);
+          lines.push(`[${item.eventCode}] ERROR: ${item.error}`);
+          lines.push("");
         }
 
-        textBlocks.push("");
+        card.appendChild(head);
         card.appendChild(body);
         resultsEl.appendChild(card);
       }
 
-      lastOutputText = textBlocks.join("\n");
+      lastOutputText = lines.join("\n");
     }
 
-    function escapeHtml(s) {
-      return s
+    function escapeHtml(str) {
+      return str
         .replaceAll("&", "&amp;")
         .replaceAll("<", "&lt;")
         .replaceAll(">", "&gt;")
@@ -367,7 +369,7 @@ sq1
       setStatus([
         { text: "Generating..." },
         { text: `${eventCodes.length} event(s)` },
-        { text: `${count} each` },
+        { text: `${count} each` }
       ]);
 
       try {
@@ -379,7 +381,7 @@ sq1
             return {
               eventCode,
               ok: false,
-              error: err?.message || String(err),
+              error: err?.message || String(err)
             };
           }
         });
@@ -387,13 +389,13 @@ sq1
         const data = await runWithConcurrency(tasks, parallel);
         renderResults(data);
 
-        const okCount = data.filter(x => x.ok).length;
+        const okCount = data.filter(d => d.ok).length;
         const failCount = data.length - okCount;
 
         setStatus([
           { text: "Done", type: okCount ? "ok" : "" },
           { text: `${okCount} ok`, type: okCount ? "ok" : "" },
-          { text: `${failCount} failed`, type: failCount ? "err" : "" },
+          { text: `${failCount} failed`, type: failCount ? "err" : "" }
         ]);
       } finally {
         generateBtn.disabled = false;
@@ -408,12 +410,10 @@ sq1
         await navigator.clipboard.writeText(lastOutputText);
         setStatus([
           { text: "Copied", type: "ok" },
-          { text: "Scrambles copied to clipboard" },
+          { text: "Scrambles copied" }
         ]);
       } catch {
-        setStatus([
-          { text: "Copy failed", type: "err" }
-        ]);
+        setStatus([{ text: "Copy failed", type: "err" }]);
       }
     });
 
